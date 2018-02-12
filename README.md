@@ -14,6 +14,12 @@ Decagon has been used to solve problems in computational pharmacology, specifica
 
 Using Decagon, we construct a multimodal graph of protein-protein interactions, drug-protein target interactions, and the polypharmacy side effects, which are represented as drug-drug interactions, where each side effect is an edge of a different type. Decagon then predicts the exact side effect, if any, through which a given drug combination manifests clinically.
 
+![Polypharmacy graph](/images/polypharmacy-graph.png)
+
+Decagon species a graph convolutional neural network architecture based on this multimodal graph to model and predict polypharmacy side effects.
+  
+![Polypharmacy side effect prediction](/images/decagon-architecture-1.png)
+
 The setup for this problem using a dummy dataset is outlined in:
 
     main.py
