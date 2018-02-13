@@ -1,6 +1,9 @@
 from collections import defaultdict
 import networkx as nx
 
+# Returns dictionary from combination ID to pair of stitch IDs, 
+# dictionary from combination ID to list of polypharmacy side effects, 
+# and dictionary from side effects to their names.
 def load_combo_se(fname='bio-decagon-combo.csv'):
     combo2stitch = {}
     combo2se = defaultdict(set)
@@ -20,6 +23,8 @@ def load_combo_se(fname='bio-decagon-combo.csv'):
     print 'Drug-drug interactions: %d' % (n_interactions)
     return combo2stitch, combo2se, se2name
 
+# Returns networkx graph of the PPI network 
+# and a dictionary that maps each gene ID to a number
 def load_ppi(fname='bio-decagon-ppi.csv'):
     fin = open(fname)
     print 'Reading: %s' % fname
@@ -38,6 +43,8 @@ def load_ppi(fname='bio-decagon-ppi.csv'):
     node2idx = {node: i for i, node in enumerate(net.nodes())}
     return net, node2idx
 
+# Returns dictionary from Stitch ID to list of individual side effects, 
+# and dictionary from side effects to their names.
 def load_mono_se(fname='bio-decagon-mono.csv'):
     stitch2se = defaultdict(set)
     se2name = {}
@@ -52,6 +59,7 @@ def load_mono_se(fname='bio-decagon-mono.csv'):
         se2name[se] = se_name
     return stitch2se, se2name
 
+# Returns dictionary from Stitch ID to list of drug targets
 def load_targets(fname='bio-decagon-targets.csv'):
     stitch2proteins = defaultdict(set)
     fin = open(fname)
@@ -62,6 +70,8 @@ def load_targets(fname='bio-decagon-targets.csv'):
         stitch2proteins[stitch_id].add(gene)
     return stitch2proteins
 
+# Returns dictionary from side effect to disease class of that side effect,
+# and dictionary from side effects to their names.
 def load_categories(fname='bio-decagon-effectcategories.csv'):
     se2name = {}
     se2class = {}
