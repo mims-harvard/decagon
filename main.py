@@ -97,6 +97,7 @@ def construct_placeholders(edge_types):
 # These are random and very small networks - expect poor performance
 # as these random networks do not have any interesting structure
 # The purpose of main.py is to show how to use the code!
+# All preprocessed datasets used in drug combination study are at: http://snap.stanford.edu/decagon.
 ####
 
 n_genes = 500

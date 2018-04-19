@@ -5,7 +5,9 @@ prediction in multimodal graphs.
 
 It is a general approach for multirelational link prediction in any multimodal network. 
 Decagon handles multimodal graphs with large numbers of edge types. It works on simple and 
-multimodal graphs. Please check the [project page](http://snap.stanford.edu/decagon) for more details.
+multimodal graphs. 
+
+Please check the [project page](http://snap.stanford.edu/decagon) for more details, including the preprocessed datasets for modeling drug combinations.
   
 ## Usage
 
@@ -24,7 +26,7 @@ The setup for this problem using a dummy dataset is outlined in:
 
     main.py
     
-The actual datasets are available for download from [project page](http://snap.stanford.edu/decagon).
+All preprocessed datasets used for polypharmacy side effect prediction are available for download from [project page](http://snap.stanford.edu/decagon).
 
 ## Citing
 
