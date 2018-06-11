@@ -1,4 +1,5 @@
 from operator import itemgetter
+from itertools import combinations
 import time
 import os
 
@@ -32,10 +33,13 @@ np.random.seed(0)
 
 def get_accuracy_scores(edges_pos, edges_neg, edge_type):
     feed_dict.update({placeholders['dropout']: 0})
+    feed_dict.update({placeholders['batch_edge_type_idx']: minibatch.edge_type2idx[edge_type]})
+    feed_dict.update({placeholders['batch_row_edge_type']: edge_type[0]})
+    feed_dict.update({placeholders['batch_col_edge_type']: edge_type[1]})
     rec = sess.run(opt.preds, feed_dict=feed_dict)
 
     def sigmoid(x):
-        return 1 / (1 + np.exp(-x))
+        return 1. / (1 + np.exp(-x))
 
     # Predict on test set of edges
     preds = []
@@ -60,7 +64,7 @@ def get_accuracy_scores(edges_pos, edges_neg, edge_type):
 
     preds_all = np.hstack([preds, preds_neg])
     preds_all = np.nan_to_num(preds_all)
-    labels_all = np.hstack([np.ones(len(preds)), np.zeros(len(preds))])
+    labels_all = np.hstack([np.ones(len(preds)), np.zeros(len(preds_neg))])
     predicted = zip(*sorted(predicted, reverse=True, key=itemgetter(0)))[1]
 
     roc_score = metrics.roc_auc_score(labels_all, preds_all)
@@ -89,31 +93,41 @@ def construct_placeholders(edge_types):
 
 ###########################################################
 #
-# Load and preprocess data (this is a dummy toy example!)
+# Load and preprocess data (This is a dummy toy example!)
 #
 ###########################################################
 
 ####
-# These are random and very small networks - expect poor performance
-# as these random networks do not have any interesting structure
+# The following code uses artificially generated and very small networks.
+# Expect less than excellent performance as these random networks do not have any interesting structure.
 # The purpose of main.py is to show how to use the code!
-# All preprocessed datasets used in drug combination study are at: http://snap.stanford.edu/decagon.
+#
+# All preprocessed datasets used in the drug combination study are at: http://snap.stanford.edu/decagon:
+# (1) Download datasets from http://snap.stanford.edu/decagon to your local machine.
+# (2) Replace dummy toy datasets used here with the actual datasets you just downloaded.
+# (3) Train & test the model.
 ####
 
+val_test_size = 0.05
 n_genes = 500
 n_drugs = 400
-n_drugdrug_rel_types = 10
+n_drugdrug_rel_types = 3
 gene_net = nx.planted_partition_graph(50, 10, 0.2, 0.05, seed=42)
 
 gene_adj = nx.adjacency_matrix(gene_net)
 gene_degrees = np.array(gene_adj.sum(axis=0)).squeeze()
 
-gene_drug_adj = sp.csr_matrix((np.random.rand(n_genes, n_drugs) > 0.7).astype(int))
+gene_drug_adj = sp.csr_matrix((10 * np.random.randn(n_genes, n_drugs) > 15).astype(int))
 drug_gene_adj = gene_drug_adj.transpose(copy=True)
 
-drug_drug_adj_list = [
-    nx.adjacency_matrix(nx.planted_partition_graph(20, 20, 0.2, 0.05))
-    for _ in range(n_drugdrug_rel_types)]
+drug_drug_adj_list = []
+tmp = np.dot(drug_gene_adj, gene_drug_adj)
+for i in range(n_drugdrug_rel_types):
+    mat = np.zeros((n_drugs, n_drugs))
+    for d1, d2 in combinations(list(range(n_drugs)), 2):
+        if tmp[d1, d2] == i+4:
+            mat[d1, d2] = mat[d2, d1] = 1.
+    drug_drug_adj_list.append(sp.csr_matrix(mat))
 drug_degrees_list = [np.array(drug_adj.sum(axis=0)).squeeze() for drug_adj in drug_drug_adj_list]
 
 
@@ -181,11 +195,11 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('neg_sample_size', 1, 'Negative sample size.')
 flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
-flags.DEFINE_integer('epochs', 10, 'Number of epochs to train.')
+flags.DEFINE_integer('epochs', 50, 'Number of epochs to train.')
 flags.DEFINE_integer('hidden1', 64, 'Number of units in hidden layer 1.')
 flags.DEFINE_integer('hidden2', 32, 'Number of units in hidden layer 2.')
-flags.DEFINE_float('weight_decay', 0., 'Weight for L2 loss on embedding matrix.')
-flags.DEFINE_float('dropout', 0, 'Dropout rate (1 - keep probability).')
+flags.DEFINE_float('weight_decay', 0, 'Weight for L2 loss on embedding matrix.')
+flags.DEFINE_float('dropout', 0.1, 'Dropout rate (1 - keep probability).')
 flags.DEFINE_float('max_margin', 0.1, 'Max margin parameter in hinge loss')
 flags.DEFINE_integer('batch_size', 512, 'minibatch size.')
 flags.DEFINE_boolean('bias', True, 'Bias term.')
@@ -205,7 +219,8 @@ minibatch = EdgeMinibatchIterator(
     feat=feat,
     edge_types=edge_types,
     directed=edge_type2directed,
-    batch_size=FLAGS.batch_size
+    batch_size=FLAGS.batch_size,
+    val_test_size=val_test_size
 )
 
 print 'Create model'

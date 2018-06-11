@@ -146,9 +146,9 @@ class EdgeMinibatchIterator(object):
 
         self.train_edges[edge_type][type_idx] = train_edges
         self.val_edges[edge_type][type_idx] = val_edges
-        self.val_edges_false[edge_type][type_idx] = val_edges_false
+        self.val_edges_false[edge_type][type_idx] = np.array(val_edges_false)
         self.test_edges[edge_type][type_idx] = test_edges
-        self.test_edges_false[edge_type][type_idx] = test_edges_false
+        self.test_edges_false[edge_type][type_idx] = np.array(test_edges_false)
 
     def end(self):
         finished = len(self.freebatch_edge_types) == 0

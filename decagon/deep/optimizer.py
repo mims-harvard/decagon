@@ -78,11 +78,13 @@ class DecagonOptimizer(object):
         self.grads_vars = self.optimizer.compute_gradients(self.cost)
 
     def _hinge_loss(self, aff, neg_aff):
+        """Maximum-margin optimization using the hinge loss."""
         diff = tf.nn.relu(tf.subtract(neg_aff, tf.expand_dims(aff, 0) - self.margin), name='diff')
         loss = tf.reduce_sum(diff)
         return loss
 
     def _xent_loss(self, aff, neg_aff):
+        """Cross-entropy optimization."""
         true_xent = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.ones_like(aff), logits=aff)
         negative_xent = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.zeros_like(neg_aff), logits=neg_aff)
         loss = tf.reduce_sum(true_xent) + self.neg_sample_weights * tf.reduce_sum(negative_xent)
