@@ -30,17 +30,16 @@ All preprocessed datasets used for polypharmacy side effect prediction are avail
 
 ## Citing
 
-If you find *Decagon* useful for your research, please consider citing:
+If you find *Decagon* useful for your research, please consider citing [this paper](https://academic.oup.com/bioinformatics/article/34/13/i457/5045770):
 
     @article{Zitnik2018,
       title     = {Modeling polypharmacy side effects with graph convolutional networks.},
       author    = {Zitnik, Marinka and Agrawal, Monica and Leskovec, Jure},
-      journal   = {},
-      volume    = {},
-      number    = {},
-      pages     = {},
-      year      = {},
-      publisher = {}
+      journal   = {Bioinformatics},
+      volume    = {34},
+      number    = {13},
+      pages     = {457–466},
+      year      = {2018}
     }
 
 ## Miscellaneous
