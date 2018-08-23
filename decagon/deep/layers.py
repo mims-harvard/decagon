@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from inits import *
+from . import inits
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -79,7 +79,7 @@ class GraphConvolutionSparseMulti(MultiLayer):
         self.nonzero_feat = nonzero_feat
         with tf.variable_scope('%s_vars' % self.name):
             for k in range(self.num_types):
-                self.vars['weights_%d' % k] = weight_variable_glorot(
+                self.vars['weights_%d' % k] = inits.weight_variable_glorot(
                     input_dim[self.edge_type[1]], output_dim, name='weights_%d' % k)
 
     def _call(self, inputs):
@@ -103,7 +103,7 @@ class GraphConvolutionMulti(MultiLayer):
         self.act = act
         with tf.variable_scope('%s_vars' % self.name):
             for k in range(self.num_types):
-                self.vars['weights_%d' % k] = weight_variable_glorot(
+                self.vars['weights_%d' % k] = inits.weight_variable_glorot(
                     input_dim, output_dim, name='weights_%d' % k)
 
     def _call(self, inputs):
@@ -125,10 +125,10 @@ class DEDICOMDecoder(MultiLayer):
         self.dropout = dropout
         self.act = act
         with tf.variable_scope('%s_vars' % self.name):
-            self.vars['global_interaction'] = weight_variable_glorot(
+            self.vars['global_interaction'] = inits.weight_variable_glorot(
                 input_dim, input_dim, name='global_interaction')
             for k in range(self.num_types):
-                tmp = weight_variable_glorot(
+                tmp = inits.weight_variable_glorot(
                     input_dim, 1, name='local_variation_%d' % k)
                 self.vars['local_variation_%d' % k] = tf.reshape(tmp, [-1])
 
@@ -155,7 +155,7 @@ class DistMultDecoder(MultiLayer):
         self.act = act
         with tf.variable_scope('%s_vars' % self.name):
             for k in range(self.num_types):
-                tmp = weight_variable_glorot(
+                tmp = inits.weight_variable_glorot(
                     input_dim, 1, name='relation_%d' % k)
                 self.vars['relation_%d' % k] = tf.reshape(tmp, [-1])
 
@@ -180,7 +180,7 @@ class BilinearDecoder(MultiLayer):
         self.act = act
         with tf.variable_scope('%s_vars' % self.name):
             for k in range(self.num_types):
-                self.vars['relation_%d' % k] = weight_variable_glorot(
+                self.vars['relation_%d' % k] = inits.weight_variable_glorot(
                     input_dim, input_dim, name='relation_%d' % k)
 
     def _call(self, inputs):

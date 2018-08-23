@@ -1,4 +1,5 @@
 from __future__ import division
+from __future__ import print_function
 
 import numpy as np
 import scipy.sparse as sp
@@ -15,11 +16,10 @@ class EdgeMinibatchIterator(object):
     placeholders -- tensorflow placeholders object
     batch_size -- size of the minibatches
     """
-    def __init__(self, adj_mats, feat, edge_types, directed, batch_size=100, val_test_size=0.01):
+    def __init__(self, adj_mats, feat, edge_types, batch_size=100, val_test_size=0.01):
         self.adj_mats = adj_mats
         self.feat = feat
         self.edge_types = edge_types
-        self.directed = directed
         self.batch_size = batch_size
         self.val_test_size = val_test_size
         self.num_edge_types = sum(self.edge_types.values())
@@ -47,12 +47,12 @@ class EdgeMinibatchIterator(object):
         self.adj_train = {edge_type: [None]*n for edge_type, n in self.edge_types.items()}
         for i, j in self.edge_types:
             for k in range(self.edge_types[i,j]):
-                print 'Minibatch edge type: (%d, %d, %d)' % (i, j, k)
-                self.mask_test_edges((i, j), k, self.directed[i,j][k])
+                print("Minibatch edge type:", "(%d, %d, %d)" % (i, j, k))
+                self.mask_test_edges((i, j), k)
 
-                print 'Train edges %d: %d' % (i, len(self.train_edges[i,j][k]))
-                print 'Val edges %d: %d' % (i, len(self.val_edges[i,j][k]))
-                print 'Test edges %d: %d' % (i, len(self.test_edges[i,j][k]))
+                print("Train edges=", "%04d" % len(self.train_edges[i,j][k]))
+                print("Val edges=", "%04d" % len(self.val_edges[i,j][k]))
+                print("Test edges=", "%04d" % len(self.test_edges[i,j][k]))
 
     def preprocess_graph(self, adj):
         adj = sp.coo_matrix(adj)
@@ -76,12 +76,12 @@ class EdgeMinibatchIterator(object):
         return (np.all(np.any(rows_close, axis=-1), axis=-1) and
                 np.all(np.any(rows_close, axis=0), axis=0))
 
-    def mask_test_edges(self, edge_type, type_idx, directed):
+    def mask_test_edges(self, edge_type, type_idx):
         edges_all = preprocessing.sparse_to_tuple(self.adj_mats[edge_type][type_idx])[0]
         num_test = max(50, int(np.floor(edges_all.shape[0] * self.val_test_size)))
         num_val = max(50, int(np.floor(edges_all.shape[0] * self.val_test_size)))
 
-        all_edge_idx = range(edges_all.shape[0])
+        all_edge_idx = list(range(edges_all.shape[0]))
         np.random.shuffle(all_edge_idx)
 
         val_edge_idx = all_edge_idx[:num_val]
@@ -90,25 +90,12 @@ class EdgeMinibatchIterator(object):
         test_edge_idx = all_edge_idx[num_val:(num_val + num_test)]
         test_edges = edges_all[test_edge_idx]
 
-        if not directed:
-            edge2idx = {tuple(edge): i for i, edge in enumerate(edges_all)}
-
-            val_edges_sym = [(v, u) for u, v in val_edges]
-            val_edge_idx_sym = [edge2idx[edge] for edge in val_edges_sym]
-            val_edges = np.concatenate((val_edges, val_edges_sym))
-            val_edge_idx = np.concatenate((val_edge_idx, val_edge_idx_sym))
-
-            test_edges_sym = [(v, u) for u, v in test_edges]
-            test_edge_idx_sym = [edge2idx[edge] for edge in test_edges_sym]
-            test_edges = np.concatenate((test_edges, test_edges_sym))
-            test_edge_idx = np.concatenate((test_edge_idx, test_edge_idx_sym))
-
         train_edges = np.delete(edges_all, np.hstack([test_edge_idx, val_edge_idx]), axis=0)
 
         test_edges_false = []
         while len(test_edges_false) < len(test_edges):
             if len(test_edges_false) % 1000 == 0:
-                print 'Constructing test edges: %d/%d' % (len(test_edges_false), len(test_edges))
+                print("Constructing test edges=", "%04d/%04d" % (len(test_edges_false), len(test_edges)))
             idx_i = np.random.randint(0, self.adj_mats[edge_type][type_idx].shape[0])
             idx_j = np.random.randint(0, self.adj_mats[edge_type][type_idx].shape[1])
             if self._ismember([idx_i, idx_j], edges_all):
@@ -121,7 +108,7 @@ class EdgeMinibatchIterator(object):
         val_edges_false = []
         while len(val_edges_false) < len(val_edges):
             if len(val_edges_false) % 1000 == 0:
-                print 'Constructing val edges: %d/%d' % (len(val_edges_false), len(val_edges))
+                print("Constructing val edges=", "%04d/%04d" % (len(val_edges_false), len(val_edges)))
             idx_i = np.random.randint(0, self.adj_mats[edge_type][type_idx].shape[0])
             idx_j = np.random.randint(0, self.adj_mats[edge_type][type_idx].shape[1])
             if self._ismember([idx_i, idx_j], edges_all):

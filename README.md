@@ -49,7 +49,7 @@ algorithm to <marinka@cs.stanford.edu>.
 
 ## Dependencies
 
-Decagon is tested to work under Python 2.7.
+Decagon is tested to work under Python 2 and Python 3.
 
 The required dependencies for Decagon are [NumPy](http://www.numpy.org) >= 1.13, [NetworkX](https://networkx.github.io/) >= 2.0, and [TensorFlow](https://www.tensorflow.org/) >= 1.1.
 

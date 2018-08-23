@@ -15,7 +15,7 @@ class DecagonOptimizer(object):
         self.latent_varies = latent_varies
         self.edge_types = edge_types
         self.degrees = degrees
-        self.row_edge_type2dim = {i: dim[0][0] for (i, _), dim in edge_type2dim.iteritems()}
+        self.row_edge_type2dim = {i: dim[0][0] for (i, _), dim in edge_type2dim.items()}
         self.edge_type2dim = edge_type2dim
         self.mx_row = np.max([r for rel_list in self.edge_type2dim.values() for r, _ in rel_list])
         self.margin = margin

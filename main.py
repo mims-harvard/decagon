@@ -1,3 +1,5 @@
+from __future__ import division
+from __future__ import print_function
 from operator import itemgetter
 from itertools import combinations
 import time
@@ -30,6 +32,7 @@ np.random.seed(0)
 # Functions
 #
 ###########################################################
+
 
 def get_accuracy_scores(edges_pos, edges_neg, edge_type):
     feed_dict.update({placeholders['dropout']: 0})
@@ -65,13 +68,13 @@ def get_accuracy_scores(edges_pos, edges_neg, edge_type):
     preds_all = np.hstack([preds, preds_neg])
     preds_all = np.nan_to_num(preds_all)
     labels_all = np.hstack([np.ones(len(preds)), np.zeros(len(preds_neg))])
-    predicted = zip(*sorted(predicted, reverse=True, key=itemgetter(0)))[1]
+    predicted = list(zip(*sorted(predicted, reverse=True, key=itemgetter(0))))[1]
 
-    roc_score = metrics.roc_auc_score(labels_all, preds_all)
-    aupr_score = metrics.average_precision_score(labels_all, preds_all)
-    apk_score = rank_metrics.apk(actual, predicted, k=50)
+    roc_sc = metrics.roc_auc_score(labels_all, preds_all)
+    aupr_sc = metrics.average_precision_score(labels_all, preds_all)
+    apk_sc = rank_metrics.apk(actual, predicted, k=50)
 
-    return roc_score, aupr_score, apk_score
+    return roc_sc, aupr_sc, apk_sc
 
 
 def construct_placeholders(edge_types):
@@ -125,7 +128,7 @@ tmp = np.dot(drug_gene_adj, gene_drug_adj)
 for i in range(n_drugdrug_rel_types):
     mat = np.zeros((n_drugs, n_drugs))
     for d1, d2 in combinations(list(range(n_drugs)), 2):
-        if tmp[d1, d2] == i+4:
+        if tmp[d1, d2] == i + 4:
             mat[d1, d2] = mat[d2, d1] = 1.
     drug_drug_adj_list.append(sp.csr_matrix(mat))
 drug_degrees_list = [np.array(drug_adj.sum(axis=0)).squeeze() for drug_adj in drug_drug_adj_list]
@@ -133,14 +136,14 @@ drug_degrees_list = [np.array(drug_adj.sum(axis=0)).squeeze() for drug_adj in dr
 
 # data representation
 adj_mats_orig = {
-    (0,0): [gene_adj],
-    (0,1): [gene_drug_adj],
-    (1,0): [drug_gene_adj],
-    (1,1): drug_drug_adj_list,
+    (0, 0): [gene_adj, gene_adj.transpose(copy=True)],
+    (0, 1): [gene_drug_adj],
+    (1, 0): [drug_gene_adj],
+    (1, 1): drug_drug_adj_list + [x.transpose(copy=True) for x in drug_drug_adj_list],
 }
 degrees = {
-    0: [gene_degrees],
-    1: drug_degrees_list,
+    0: [gene_degrees, gene_degrees],
+    1: drug_degrees_list + drug_degrees_list,
 }
 
 # featureless (genes)
@@ -167,23 +170,17 @@ feat = {
     1: drug_feat,
 }
 
-edge_type2dim = {k: [adj.shape for adj in adjs] for k, adjs in adj_mats_orig.iteritems()}
-edge_type2directed = {
-    (0,0): [False],
-    (0,1): [True],
-    (1,0): [True],
-    (1,1): [False]*len(drug_drug_adj_list),
-}
+edge_type2dim = {k: [adj.shape for adj in adjs] for k, adjs in adj_mats_orig.items()}
 edge_type2decoder = {
-    (0,0): 'bilinear',
-    (0,1): 'bilinear',
-    (1,0): 'bilinear',
-    (1,1): 'dedicom',
+    (0, 0): 'bilinear',
+    (0, 1): 'bilinear',
+    (1, 0): 'bilinear',
+    (1, 1): 'dedicom',
 }
 
-edge_types = {k: len(v) for k, v in adj_mats_orig.iteritems()}
+edge_types = {k: len(v) for k, v in adj_mats_orig.items()}
 num_edge_types = sum(edge_types.values())
-print 'Edge types: %d' % num_edge_types
+print("Edge types:", "%d" % num_edge_types)
 
 ###########################################################
 #
@@ -204,7 +201,7 @@ flags.DEFINE_float('max_margin', 0.1, 'Max margin parameter in hinge loss')
 flags.DEFINE_integer('batch_size', 512, 'minibatch size.')
 flags.DEFINE_boolean('bias', True, 'Bias term.')
 
-print 'Defining placeholders'
+print("Defining placeholders")
 placeholders = construct_placeholders(edge_types)
 
 ###########################################################
@@ -213,17 +210,16 @@ placeholders = construct_placeholders(edge_types)
 #
 ###########################################################
 
-print 'Create minibatch iterator'
+print("Create minibatch iterator")
 minibatch = EdgeMinibatchIterator(
     adj_mats=adj_mats_orig,
     feat=feat,
     edge_types=edge_types,
-    directed=edge_type2directed,
     batch_size=FLAGS.batch_size,
     val_test_size=val_test_size
 )
 
-print 'Create model'
+print("Create model")
 model = DecagonModel(
     placeholders=placeholders,
     num_feat=num_feat,
@@ -232,7 +228,7 @@ model = DecagonModel(
     decoders=edge_type2decoder,
 )
 
-print 'Create optimizer'
+print("Create optimizer")
 with tf.name_scope('optimizer'):
     opt = DecagonOptimizer(
         row_embeds=model.row_embeds,
@@ -247,7 +243,7 @@ with tf.name_scope('optimizer'):
         margin=FLAGS.max_margin
     )
 
-print 'Initialize session'
+print("Initialize session")
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 feed_dict = {}
@@ -258,7 +254,7 @@ feed_dict = {}
 #
 ###########################################################
 
-print 'Train model'
+print("Train model")
 print_every = 1
 for epoch in range(FLAGS.epochs):
 
@@ -284,19 +280,25 @@ for epoch in range(FLAGS.epochs):
                 minibatch.val_edges, minibatch.val_edges_false,
                 minibatch.idx2edge_type[minibatch.current_edge_type_idx])
 
-            print 'Epoch: %04d Iter: %04d Edge: %04d train_loss=%-15.3f ' \
-                  'val_roc=%.5f val_auprc=%.5f val_apk=%.5f time=%.5f' % (
-                epoch + 1, itr + 1, batch_edge_type, train_cost,
-                val_auc, val_auprc, val_apk, time.time() - t)
+            print("Epoch:", "%04d" % (epoch + 1), "Iter:", "%04d" % (itr + 1), "Edge:", "%04d" % batch_edge_type,
+                  "train_loss=", "{:.5f}".format(train_cost),
+                  "val_roc=", "{:.5f}".format(val_auc), "val_auprc=", "{:.5f}".format(val_auprc),
+                  "val_apk=", "{:.5f}".format(val_apk), "time=", "{:.5f}".format(time.time() - t))
+
+            train_auc, train_auprc, train_apk = get_accuracy_scores(
+                minibatch.train_edges, minibatch.val_edges_false,
+                minibatch.idx2edge_type[minibatch.current_edge_type_idx])
 
         itr += 1
 
-print 'Optimization finished!'
+
+print("Optimization finished!")
 
 for et in range(num_edge_types):
     roc_score, auprc_score, apk_score = get_accuracy_scores(
         minibatch.test_edges, minibatch.test_edges_false, minibatch.idx2edge_type[et])
-    print 'Test AUROC score %d: %5.3f' % (et, roc_score)
-    print 'Test AUPRC score %d: %5.3f' % (et, auprc_score)
-    print 'Test AP@k score %d: %5.3f' % (et, apk_score)
-    print
+    print("Edge type=", "[%02d, %02d, %02d]" % minibatch.idx2edge_type[et])
+    print("Edge type:", "%04d" % et, "Test AUROC score", "{:.5f}".format(roc_score))
+    print("Edge type:", "%04d" % et, "Test AUPRC score", "{:.5f}".format(auprc_score))
+    print("Edge type:", "%04d" % et, "Test AP@k score", "{:.5f}".format(apk_score))
+    print()
