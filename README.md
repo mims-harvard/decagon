@@ -26,7 +26,7 @@ The setup for this problem using a dummy dataset is outlined in:
 
     main.py
     
-All preprocessed datasets used for polypharmacy side effect prediction are available for download from [project page](http://snap.stanford.edu/decagon).
+All preprocessed datasets used for polypharmacy side effect prediction are available for download from the [project page](http://snap.stanford.edu/decagon).
 
 ## Citing
 
@@ -47,11 +47,15 @@ If you find *Decagon* useful for your research, please consider citing [this pap
 Please send any questions you might have about the code and/or the 
 algorithm to <marinka@cs.stanford.edu>.
 
+This code implements several different edge decoders (innerproduct, distmult, 
+bilinear, dedicom) and loss functions (hinge loss, cross entropy). Many deep variants are possible and what works 
+best might depend on a concrete use case.  
+
 ## Dependencies
 
 Decagon is tested to work under Python 2 and Python 3.
 
-The required dependencies for Decagon are [NumPy](http://www.numpy.org) >= 1.13, [NetworkX](https://networkx.github.io/) >= 2.0, and [TensorFlow](https://www.tensorflow.org/) >= 1.1.
+The required dependencies for Decagon are [NumPy](http://www.numpy.org) >= 1.13, [NetworkX](https://networkx.github.io/) >= 2.0, and [TensorFlow](https://www.tensorflow.org/) >= 1.5.
 
 ## License
 

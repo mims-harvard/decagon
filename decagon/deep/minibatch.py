@@ -69,15 +69,14 @@ class EdgeMinibatchIterator(object):
             adj_normalized = rowdegree_mat_inv.dot(adj).dot(coldegree_mat_inv).tocoo()
         return preprocessing.sparse_to_tuple(adj_normalized)
 
-    def _ismember(self, a, b, tol=5):
+    def _ismember(self, a, b):
         a = np.array(a)
         b = np.array(b)
-        rows_close = np.all(np.round(a - b[:, None], tol) == 0, axis=-1)
-        return (np.all(np.any(rows_close, axis=-1), axis=-1) and
-                np.all(np.any(rows_close, axis=0), axis=0))
+        rows_close = np.all(a - b == 0, axis=1)
+        return np.any(rows_close)
 
     def mask_test_edges(self, edge_type, type_idx):
-        edges_all = preprocessing.sparse_to_tuple(self.adj_mats[edge_type][type_idx])[0]
+        edges_all, _, _ = preprocessing.sparse_to_tuple(self.adj_mats[edge_type][type_idx])
         num_test = max(50, int(np.floor(edges_all.shape[0] * self.val_test_size)))
         num_val = max(50, int(np.floor(edges_all.shape[0] * self.val_test_size)))
 
@@ -101,7 +100,7 @@ class EdgeMinibatchIterator(object):
             if self._ismember([idx_i, idx_j], edges_all):
                 continue
             if test_edges_false:
-                if self._ismember([idx_i, idx_j], np.array(test_edges_false)):
+                if self._ismember([idx_i, idx_j], test_edges_false):
                     continue
             test_edges_false.append([idx_i, idx_j])
 
@@ -114,15 +113,9 @@ class EdgeMinibatchIterator(object):
             if self._ismember([idx_i, idx_j], edges_all):
                 continue
             if val_edges_false:
-                if self._ismember([idx_i, idx_j], np.array(val_edges_false)):
+                if self._ismember([idx_i, idx_j], val_edges_false):
                     continue
             val_edges_false.append([idx_i, idx_j])
-
-        assert ~self._ismember(test_edges_false, edges_all)
-        assert ~self._ismember(val_edges_false, edges_all)
-        assert ~self._ismember(val_edges, train_edges)
-        assert ~self._ismember(test_edges, train_edges)
-        assert ~self._ismember(val_edges, test_edges)
 
         # Re-build adj matrices
         data = np.ones(train_edges.shape[0])

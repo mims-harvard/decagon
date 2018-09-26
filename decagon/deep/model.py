@@ -49,8 +49,7 @@ class DecagonModel(Model):
         super(DecagonModel, self).__init__(**kwargs)
         self.edge_types = edge_types
         self.num_edge_types = sum(self.edge_types.values())
-        self.num_row_types = max([i for i, _ in self.edge_types]) + 1
-        self.num_col_types = max([j for _, j in self.edge_types]) + 1
+        self.num_obj_types = max([i for i, _ in self.edge_types]) + 1
         self.decoders = decoders
         self.inputs = {i: placeholders['feat_%d' % i] for i, _ in self.edge_types}
         self.input_dim = num_feat
@@ -75,22 +74,18 @@ class DecagonModel(Model):
         for i, hid1 in self.hidden1.items():
             self.hidden1[i] = tf.nn.relu(tf.add_n(hid1))
 
-        self.embeddings = defaultdict(list)
+        self.embeddings_reltyp = defaultdict(list)
         for i, j in self.edge_types:
-            self.embeddings[i].append(GraphConvolutionMulti(
+            self.embeddings_reltyp[i].append(GraphConvolutionMulti(
                 input_dim=FLAGS.hidden1, output_dim=FLAGS.hidden2,
                 edge_type=(i,j), num_types=self.edge_types[i,j],
                 adj_mats=self.adj_mats, act=lambda x: x,
                 dropout=self.dropout, logging=self.logging)(self.hidden1[j]))
 
-        for i, embeds in self.embeddings.items():
+        self.embeddings = [None] * self.num_obj_types
+        for i, embeds in self.embeddings_reltyp.items():
             # self.embeddings[i] = tf.nn.relu(tf.add_n(embeds))
             self.embeddings[i] = tf.add_n(embeds)
-
-        self.row_embeds, self.col_embeds = [None]*self.num_row_types, [None]*self.num_col_types
-        for i, j in self.edge_types:
-                self.row_embeds[i] = self.embeddings[i]
-                self.col_embeds[j] = self.embeddings[j]
 
         self.edge_type2decoder = {}
         for i, j in self.edge_types:

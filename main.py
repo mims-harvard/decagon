@@ -39,7 +39,7 @@ def get_accuracy_scores(edges_pos, edges_neg, edge_type):
     feed_dict.update({placeholders['batch_edge_type_idx']: minibatch.edge_type2idx[edge_type]})
     feed_dict.update({placeholders['batch_row_edge_type']: edge_type[0]})
     feed_dict.update({placeholders['batch_col_edge_type']: edge_type[1]})
-    rec = sess.run(opt.preds, feed_dict=feed_dict)
+    rec = sess.run(opt.predictions, feed_dict=feed_dict)
 
     def sigmoid(x):
         return 1. / (1 + np.exp(-x))
@@ -52,6 +52,7 @@ def get_accuracy_scores(edges_pos, edges_neg, edge_type):
     for u, v in edges_pos[edge_type[:2]][edge_type[2]]:
         score = sigmoid(rec[u, v])
         preds.append(score)
+        assert adj_mats_orig[edge_type[:2]][edge_type[2]][u,v] == 1, 'Problem 1'
 
         actual.append(edge_ind)
         predicted.append((score, edge_ind))
@@ -61,6 +62,7 @@ def get_accuracy_scores(edges_pos, edges_neg, edge_type):
     for u, v in edges_neg[edge_type[:2]][edge_type[2]]:
         score = sigmoid(rec[u, v])
         preds_neg.append(score)
+        assert adj_mats_orig[edge_type[:2]][edge_type[2]][u,v] == 0, 'Problem 0'
 
         predicted.append((score, edge_ind))
         edge_ind += 1
@@ -200,6 +202,9 @@ flags.DEFINE_float('dropout', 0.1, 'Dropout rate (1 - keep probability).')
 flags.DEFINE_float('max_margin', 0.1, 'Max margin parameter in hinge loss')
 flags.DEFINE_integer('batch_size', 512, 'minibatch size.')
 flags.DEFINE_boolean('bias', True, 'Bias term.')
+# Important -- Do not evaluate/print validation performance every iteration as it can take
+# substantial amount of time
+PRINT_PROGRESS_EVERY = 150
 
 print("Defining placeholders")
 placeholders = construct_placeholders(edge_types)
@@ -231,8 +236,7 @@ model = DecagonModel(
 print("Create optimizer")
 with tf.name_scope('optimizer'):
     opt = DecagonOptimizer(
-        row_embeds=model.row_embeds,
-        col_embeds=model.col_embeds,
+        embeddings=model.embeddings,
         latent_inters=model.latent_inters,
         latent_varies=model.latent_varies,
         degrees=degrees,
@@ -255,7 +259,6 @@ feed_dict = {}
 ###########################################################
 
 print("Train model")
-print_every = 1
 for epoch in range(FLAGS.epochs):
 
     minibatch.shuffle()
@@ -275,7 +278,7 @@ for epoch in range(FLAGS.epochs):
         train_cost = outs[1]
         batch_edge_type = outs[2]
 
-        if itr % print_every == 0:
+        if itr % PRINT_PROGRESS_EVERY == 0:
             val_auc, val_auprc, val_apk = get_accuracy_scores(
                 minibatch.val_edges, minibatch.val_edges_false,
                 minibatch.idx2edge_type[minibatch.current_edge_type_idx])
@@ -285,12 +288,7 @@ for epoch in range(FLAGS.epochs):
                   "val_roc=", "{:.5f}".format(val_auc), "val_auprc=", "{:.5f}".format(val_auprc),
                   "val_apk=", "{:.5f}".format(val_apk), "time=", "{:.5f}".format(time.time() - t))
 
-            train_auc, train_auprc, train_apk = get_accuracy_scores(
-                minibatch.train_edges, minibatch.val_edges_false,
-                minibatch.idx2edge_type[minibatch.current_edge_type_idx])
-
         itr += 1
-
 
 print("Optimization finished!")
 
