@@ -1,32 +1,46 @@
-# Decagon
+# Decagon: Representation Learning on Multimodal Graphs
 
-*Decagon* is a graph convolutional neural network (GCN) approach for multirelational link 
-prediction in multimodal graphs. 
+#### Author: [Marinka Zitnik](http://stanford.edu/~marinka) (marinka@cs.stanford.edu)
 
-It is a general approach for multirelational link prediction in any multimodal network. 
-Decagon handles multimodal graphs with large numbers of edge types. It works on simple and 
-multimodal graphs. 
+#### [Project website](http://snap.stanford.edu/decagon)
 
-Please check the [project page](http://snap.stanford.edu/decagon) for more details, including the preprocessed datasets for modeling drug combinations.
+## Overview
+
+This repository contains code necessary to run the Decagon algorithm. Decagon is a method for learning node 
+embeddings in multimodal graphs, and is especially useful for link prediction in highly multi-relational settings. See 
+our [paper](https://doi.org/10.1093/bioinformatics/bty294) for details on the algorithm.
   
-## Usage
+## Usage: Polypharmacy
 
-Decagon has been used to solve problems in computational pharmacology, specifically to model 
-*polypharmacy side effects of drug pairs (i.e., drug combinations)*.
+Decagon is used to address a burning question in pharmacology, which is that of predicting 
+[safety of drug combinations](http://stanford.edu/~marinka/slides/decagon-ismb18.pdf). 
 
-Using Decagon, we construct a multimodal graph of protein-protein interactions, drug-protein target interactions, and the polypharmacy side effects, which are represented as drug-drug interactions, where each side effect is an edge of a different type. Decagon then predicts the exact side effect, if any, through which a given drug combination manifests clinically.
+We construct a multimodal graph of protein-protein interactions, drug-protein target interactions, and 
+polypharmacy side effects, which are represented as drug-drug interactions, where each side effect is an edge of a 
+different type. 
 
-![Polypharmacy graph](/images/polypharmacy-graph.png)
+<p align="center">
+<img src="https://github.com/marinkaz/decagon/blob/master/images/polypharmacy-graph.png" width="600" align="center">
+</p>
 
-Decagon species a graph convolutional neural network architecture based on this multimodal graph to model and predict polypharmacy side effects.
+Decagon uses graph convolutions to embed the multimodal graph in a compact vector space and then uses
+the learned embeddings to predict side effects of drug combinations. 
   
-![Polypharmacy side effect prediction](/images/decagon-architecture-1.png)
+<p align="center">
+<img src="https://github.com/marinkaz/decagon/blob/master/images/decagon-architecture-1.png" width="800" align="center">
+</p>
 
-The setup for this problem using a dummy dataset is outlined in:
+### Running the code
 
-    main.py
+The setup for the polypharmacy problem on a synthetic dataset is outlined in `main.py`. It uses a small synthetic 
+network example with five edge types. Run the code as following:
+
+    $ python main.py
     
-All preprocessed datasets used for polypharmacy side effect prediction are available for download from the [project page](http://snap.stanford.edu/decagon).
+The full polypharmacy dataset (described in the paper) is available on the 
+[project website](http://snap.stanford.edu/decagon). To run the code on the full dataset first download all data files
+from the [project website](http://snap.stanford.edu/decagon). The polypharmacy dataset is already preprocessed and ready to use. 
+After cloning the project, replace the synthetic example in `main.py` with the polypharmacy dataset and run the model.  
 
 ## Citing
 
@@ -51,11 +65,13 @@ This code implements several different edge decoders (innerproduct, distmult,
 bilinear, dedicom) and loss functions (hinge loss, cross entropy). Many deep variants are possible and what works 
 best might depend on a concrete use case.  
 
-## Dependencies
+## Requirements
 
-Decagon is tested to work under Python 2 and Python 3.
+Decagon is tested to work under Python 2 and Python 3. 
 
-The required dependencies for Decagon are [NumPy](http://www.numpy.org) >= 1.13, [NetworkX](https://networkx.github.io/) >= 2.0, and [TensorFlow](https://www.tensorflow.org/) >= 1.5.
+Recent versions of Tensorflow, sklearn, networkx, numpy, and scipy are required. All the required packages can be installed using the following command:
+
+    $ pip install -r requirements.txt
 
 ## License
 
