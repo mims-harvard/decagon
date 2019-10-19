@@ -69,6 +69,15 @@ best might depend on a concrete use case.
 
 Decagon is tested to work under Python 2 and Python 3. 
 
+However, as [Python 2.7 will not be maintained past 2020](https://pythonclock.org/) it is recommended to use Python 3.6 and above.
+In addition, it can be advantageous to work in a virtual environment.
+A virtual environment can be created in Python 3 in the following way:
+```
+python3 -m venv .env
+source ./.env/bin/activate
+```
+then the requirements can be installed as described below.
+
 Recent versions of Tensorflow, sklearn, networkx, numpy, and scipy are required. All the required packages can be installed using the following command:
 
     $ pip install -r requirements.txt
