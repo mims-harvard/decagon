@@ -5,7 +5,7 @@ import tensorflow as tf
 from .layers import GraphConvolutionMulti, GraphConvolutionSparseMulti, \
     DistMultDecoder, InnerProductDecoder, DEDICOMDecoder, BilinearDecoder
 
-flags = tf.app.flags
+flags = tf.compat.v1.app.flags
 FLAGS = flags.FLAGS
 
 
@@ -32,9 +32,9 @@ class Model(object):
 
     def build(self):
         """ Wrapper for _build() """
-        with tf.variable_scope(self.name):
+        with tf.compat.v1.variable_scope(self.name):
             self._build()
-        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name)
+        variables = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=self.name)
         self.vars = {var.name: var for var in variables}
 
     def fit(self):
@@ -122,14 +122,14 @@ class DecagonModel(Model):
                     glb = tf.eye(FLAGS.hidden2, FLAGS.hidden2)
                     loc = tf.eye(FLAGS.hidden2, FLAGS.hidden2)
                 elif decoder == 'distmult':
-                    glb = tf.diag(self.edge_type2decoder[edge_type].vars['relation_%d' % k])
+                    glb = tf.linalg.tensor_diag(self.edge_type2decoder[edge_type].vars['relation_%d' % k])
                     loc = tf.eye(FLAGS.hidden2, FLAGS.hidden2)
                 elif decoder == 'bilinear':
                     glb = self.edge_type2decoder[edge_type].vars['relation_%d' % k]
                     loc = tf.eye(FLAGS.hidden2, FLAGS.hidden2)
                 elif decoder == 'dedicom':
                     glb = self.edge_type2decoder[edge_type].vars['global_interaction']
-                    loc = tf.diag(self.edge_type2decoder[edge_type].vars['local_variation_%d' % k])
+                    loc = tf.linalg.tensor_diag(self.edge_type2decoder[edge_type].vars['local_variation_%d' % k])
                 else:
                     raise ValueError('Unknown decoder type')
 

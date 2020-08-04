@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-flags = tf.app.flags
+flags = tf.compat.v1.app.flags
 FLAGS = flags.FLAGS
 
 
@@ -48,11 +48,11 @@ class DecagonOptimizer(object):
         self.neg_samples = tf.gather(neg_samples_list, self.batch_edge_type_idx)
 
         self.preds = self.batch_predict(self.row_inputs, self.col_inputs)
-        self.outputs = tf.diag_part(self.preds)
+        self.outputs = tf.linalg.tensor_diag_part(self.preds)
         self.outputs = tf.reshape(self.outputs, [-1])
 
         self.neg_preds = self.batch_predict(self.neg_samples, self.col_inputs)
-        self.neg_outputs = tf.diag_part(self.neg_preds)
+        self.neg_outputs = tf.linalg.tensor_diag_part(self.neg_preds)
         self.neg_outputs = tf.reshape(self.neg_outputs, [-1])
 
         self.predict()
@@ -80,7 +80,7 @@ class DecagonOptimizer(object):
         product1 = tf.matmul(row_embeds, latent_var)
         product2 = tf.matmul(product1, latent_inter)
         product3 = tf.matmul(product2, latent_var)
-        preds = tf.matmul(product3, tf.transpose(col_embeds))
+        preds = tf.matmul(product3, tf.transpose(a=col_embeds))
         return preds
 
     def predict(self):
@@ -102,12 +102,12 @@ class DecagonOptimizer(object):
         product1 = tf.matmul(row_embeds, latent_var)
         product2 = tf.matmul(product1, latent_inter)
         product3 = tf.matmul(product2, latent_var)
-        self.predictions = tf.matmul(product3, tf.transpose(col_embeds))
+        self.predictions = tf.matmul(product3, tf.transpose(a=col_embeds))
 
     def _build(self):
         self.cost = self._hinge_loss(self.outputs, self.neg_outputs)
         # self.cost = self._xent_loss(self.outputs, self.neg_outputs)
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
+        self.optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
 
         self.opt_op = self.optimizer.minimize(self.cost)
         self.grads_vars = self.optimizer.compute_gradients(self.cost)
@@ -115,14 +115,14 @@ class DecagonOptimizer(object):
     def _hinge_loss(self, aff, neg_aff):
         """Maximum-margin optimization using the hinge loss."""
         diff = tf.nn.relu(tf.subtract(neg_aff, tf.expand_dims(aff, 0) - self.margin), name='diff')
-        loss = tf.reduce_sum(diff)
+        loss = tf.reduce_sum(input_tensor=diff)
         return loss
 
     def _xent_loss(self, aff, neg_aff):
         """Cross-entropy optimization."""
         true_xent = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.ones_like(aff), logits=aff)
         negative_xent = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.zeros_like(neg_aff), logits=neg_aff)
-        loss = tf.reduce_sum(true_xent) + self.neg_sample_weights * tf.reduce_sum(negative_xent)
+        loss = tf.reduce_sum(input_tensor=true_xent) + self.neg_sample_weights * tf.reduce_sum(input_tensor=negative_xent)
         return loss
 
 
@@ -137,10 +137,10 @@ def gather_cols(params, indices, name=None):
     Returns:
         A 2D Tensor. Has the same type as ``params``.
     """
-    with tf.op_scope([params, indices], name, "gather_cols") as scope:
+    with tf.compat.v1.op_scope([params, indices], name, "gather_cols") as scope:
         # Check input
-        params = tf.convert_to_tensor(params, name="params")
-        indices = tf.convert_to_tensor(indices, name="indices")
+        params = tf.convert_to_tensor(value=params, name="params")
+        indices = tf.convert_to_tensor(value=indices, name="indices")
         try:
             params.get_shape().assert_has_rank(2)
         except ValueError:
@@ -151,7 +151,7 @@ def gather_cols(params, indices, name=None):
             raise ValueError('\'params\' must be 1D.')
 
         # Define op
-        p_shape = tf.shape(params)
+        p_shape = tf.shape(input=params)
         p_flat = tf.reshape(params, [-1])
         i_flat = tf.reshape(tf.reshape(tf.range(0, p_shape[0]) * p_shape[1],
                                        [-1, 1]) + indices, [-1])
