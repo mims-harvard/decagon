@@ -1,5 +1,7 @@
 from __future__ import division
 from __future__ import print_function
+
+import argparse
 from operator import itemgetter
 from itertools import combinations
 import time
@@ -8,13 +10,16 @@ import os
 import tensorflow as tf
 import numpy as np
 import networkx as nx
+import pandas as pd
 import scipy.sparse as sp
 from sklearn import metrics
 
+from constants import MIN_SIDE_EFFECT_FREQUENCY
 from decagon.deep.optimizer import DecagonOptimizer
 from decagon.deep.model import DecagonModel
 from decagon.deep.minibatch import EdgeMinibatchIterator
 from decagon.utility import rank_metrics, preprocessing
+from utils import *
 
 # Train on CPU (hide GPU) due to memory constraints
 os.environ['CUDA_VISIBLE_DEVICES'] = ""
@@ -115,27 +120,155 @@ def construct_placeholders(edge_types):
 # (3) Train & test the model.
 ####
 if __name__ == '__main__':
-    val_test_size = 0.05
-    n_genes = 500
-    n_drugs = 400
-    n_drugdrug_rel_types = 3
-    gene_net = nx.planted_partition_graph(50, 10, 0.2, 0.05, seed=42)
+    parser = argparse.ArgumentParser(
+        description='Preprocess data downloaded from Phantasus')
+    parser.add_argument("--decagon_data_file_directory", type=str,
+                        help="path to directory where bio-decagon-*.csv files are located, with trailing slash. "
+                             "Default is current directory",
+                        default='./data/input')
+    parser.add_argument("--saved_files_directory", type=str,
+                        help="path to directory where saved files files are located, with trailing slash. "
+                             "Default is current directory. If a decagon_model.ckpt* exists in this directory, it will "
+                             "be loaded and evaluated, and no training will be done.",
+                        default='./data/output')
+    parser.add_argument("--verbose", help="increase output verbosity",
+                        action="store_true", default=False)
+    args = parser.parse_args()
 
+    decagon_data_file_directory = args.decagon_data_file_directory
+    verbose = args.verbose
+
+    # create pre-processed file that only has frequent side effect
+    all_combos_df = pd.read_csv(
+        f'{decagon_data_file_directory}/bio-decagon-combo.csv')
+    side_effects_freq = all_combos_df["Polypharmacy Side Effect"].value_counts()
+    side_effects_freq = side_effects_freq[side_effects_freq >=
+                                          MIN_SIDE_EFFECT_FREQUENCY]\
+        .index.tolist()
+    all_combos_df = all_combos_df[
+        all_combos_df["Polypharmacy Side Effect"].isin(side_effects_freq)]
+    all_combos_df.to_csv(
+        f'{decagon_data_file_directory}/bio-decagon-combo-freq-only.csv',
+        index=False)
+
+    # use pre=processed file that only contains the most common side effects
+    drug_drug_net, combo2stitch, combo2se, se2name = load_combo_se(
+        fname=(f'{decagon_data_file_directory}/bio-decagon-combo-freq-only.csv'))
+    # net is a networkx graph with genes(proteins) as nodes and protein-protein-interactions as edges
+    # node2idx maps node id to node index
+    gene_net, node2idx = load_ppi(
+        fname=(f'{decagon_data_file_directory}/bio-decagon-ppi.csv'))
+    # stitch2se maps (individual) stitch ids to a list of side effect ids
+    # se2name_mono maps side effect ids that occur in the mono file to side effect names (shorter than se2name)
+    stitch2se, se2name_mono = load_mono_se(
+        fname=(f'{decagon_data_file_directory}/bio-decagon-mono.csv'))
+    # stitch2proteins maps stitch ids (drug) to protein (gene) ids
+    drug_gene_net, stitch2proteins = load_targets(
+        fname=(f'{decagon_data_file_directory}/bio-decagon-targets-all.csv'))
+    # se2class maps side effect id to class name
+
+    # this was 0.05 in the original code, but the paper says
+    # that 10% each are used for testing and validation
+    val_test_size = 0.1
+    n_genes = gene_net.number_of_nodes()
     gene_adj = nx.adjacency_matrix(gene_net)
     gene_degrees = np.array(gene_adj.sum(axis=0)).squeeze()
 
-    gene_drug_adj = sp.csr_matrix((10 * np.random.randn(n_genes, n_drugs) > 15).astype(int))
-    drug_gene_adj = gene_drug_adj.transpose(copy=True)
+    ordered_list_of_drugs = list(drug_drug_net.nodes.keys())
+    ordered_list_of_side_effects = list(se2name.keys())
+    ordered_list_of_proteins = list(gene_net.nodes.keys())
+
+    n_drugs = len(ordered_list_of_drugs)
+
+    drug_gene_adj = sp.lil_matrix(np.zeros((n_drugs, n_genes)))
+    for drug in stitch2proteins:
+        for protein in stitch2proteins[drug]:
+            # there are quite a few drugs in here that aren't in our list of 645,
+            # and proteins that aren't in our list of 19081
+            if drug in ordered_list_of_drugs and protein in ordered_list_of_proteins:
+                drug_index = ordered_list_of_drugs.index(drug)
+                gene_index = ordered_list_of_proteins.index(protein)
+                drug_gene_adj[drug_index, gene_index] = 1
+
+    drug_gene_adj = drug_gene_adj.tocsr()
+
+    # needs to be drug vs. gene matrix (645x19081)
+    gene_drug_adj = drug_gene_adj.transpose(copy=True)
 
     drug_drug_adj_list = []
-    tmp = np.dot(drug_gene_adj, gene_drug_adj)
-    for i in range(n_drugdrug_rel_types):
-        mat = np.zeros((n_drugs, n_drugs))
-        for d1, d2 in combinations(list(range(n_drugs)), 2):
-            if tmp[d1, d2] == i + 4:
-                mat[d1, d2] = mat[d2, d1] = 1.
-        drug_drug_adj_list.append(sp.csr_matrix(mat))
-    drug_degrees_list = [np.array(drug_adj.sum(axis=0)).squeeze() for drug_adj in drug_drug_adj_list]
+    if not os.path.isfile("adjacency_matrices/sparse_matrix0000.npz"):
+        # pre-initialize all the matrices
+        print("Initializing drug-drug adjacency matrix list")
+
+        n = len(ordered_list_of_side_effects)
+        for i in range(n):
+            drug_drug_adj_list.append(
+                sp.lil_matrix(np.zeros((n_drugs, n_drugs))))
+            if verbose:
+                print("%s percent done" % str(100.0 * i / n))
+
+        print("Creating adjacency matrices for side effects")
+        combo_count = len(combo2se)
+        combo_counter = 0
+
+        # for side_effect_type in ordered_list_of_side_effects:
+        # for drug1, drug2 in combinations(list(range(n_drugs)), 2):
+
+        for combo in combo2se.keys():
+            side_effect_list = combo2se[combo]
+            for present_side_effect in side_effect_list:
+                # find the matrix we need to update
+                side_effect_number = ordered_list_of_side_effects.index(
+                    present_side_effect)
+                # find the drugs for which we need to make the update
+                drug_tuple = combo2stitch[combo]
+                drug1_index = ordered_list_of_drugs.index(drug_tuple[0])
+                drug2_index = ordered_list_of_drugs.index(drug_tuple[1])
+                # update
+                drug_drug_adj_list[side_effect_number][
+                    drug1_index, drug2_index] = 1
+
+            combo_counter = combo_counter + 1
+
+        print("Saving matrices to file")
+
+        # save matrices to file
+        if not os.path.isdir("adjacency_matrices"):
+            os.mkdir("adjacency_matrices")
+        for i in range(len(drug_drug_adj_list)):
+            sp.save_npz('adjacency_matrices/sparse_matrix%04d.npz' % (i,),
+                        drug_drug_adj_list[i].tocoo())
+    else:
+        print("Loading adjacency matrices from file.")
+        for i in range(len(ordered_list_of_side_effects)):
+            drug_drug_adj_list.append(
+                sp.load_npz('adjacency_matrices/sparse_matrix%04d.npz' % i))
+
+    for i in range(len(drug_drug_adj_list)):
+        drug_drug_adj_list[i] = drug_drug_adj_list[i].tocsr()
+
+
+    drug_degrees_list = [np.array(drug_adj.sum(axis=0)).squeeze() for drug_adj
+                         in drug_drug_adj_list]
+
+###########################
+    # gene_net = nx.planted_partition_graph(50, 10, 0.2, 0.05, seed=42)
+    #
+    # gene_adj = nx.adjacency_matrix(gene_net)
+    # gene_degrees = np.array(gene_adj.sum(axis=0)).squeeze()
+    #
+    # gene_drug_adj = sp.csr_matrix((10 * np.random.randn(n_genes, n_drugs) > 15).astype(int))
+    # drug_gene_adj = gene_drug_adj.transpose(copy=True)
+    #
+    # drug_drug_adj_list = []
+    # tmp = np.dot(drug_gene_adj, gene_drug_adj)
+    # for i in range(n_drugdrug_rel_types):
+    #     mat = np.zeros((n_drugs, n_drugs))
+    #     for d1, d2 in combinations(list(range(n_drugs)), 2):
+    #         if tmp[d1, d2] == i + 4:
+    #             mat[d1, d2] = mat[d2, d1] = 1.
+    #     drug_drug_adj_list.append(sp.csr_matrix(mat))
+    # drug_degrees_list = [np.array(drug_adj.sum(axis=0)).squeeze() for drug_adj in drug_drug_adj_list]
 
 
     # data representation
