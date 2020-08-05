@@ -132,7 +132,7 @@ if __name__ == '__main__':
                              "be loaded and evaluated, and no training will be done.",
                         default='./data/output')
     parser.add_argument("--verbose", help="increase output verbosity",
-                        action="store_true", default=False)
+                        action="store_true", default=True)
     args = parser.parse_args()
 
     decagon_data_file_directory = args.decagon_data_file_directory
@@ -196,6 +196,7 @@ if __name__ == '__main__':
     gene_drug_adj = drug_gene_adj.transpose(copy=True)
 
     drug_drug_adj_list = []
+    # TODO: Made better checkout (adjacency matrix can be partly saved from previous run
     if not os.path.isfile("adjacency_matrices/sparse_matrix0000.npz"):
         # pre-initialize all the matrices
         print("Initializing drug-drug adjacency matrix list")
@@ -206,7 +207,6 @@ if __name__ == '__main__':
                 sp.lil_matrix(np.zeros((n_drugs, n_drugs))))
             if verbose:
                 print("%s percent done" % str(100.0 * i / n))
-
         print("Creating adjacency matrices for side effects")
         combo_count = len(combo2se)
         combo_counter = 0
@@ -231,7 +231,6 @@ if __name__ == '__main__':
             combo_counter = combo_counter + 1
 
         print("Saving matrices to file")
-
         # save matrices to file
         if not os.path.isdir("adjacency_matrices"):
             os.mkdir("adjacency_matrices")

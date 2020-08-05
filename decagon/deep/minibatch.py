@@ -25,7 +25,7 @@ class EdgeMinibatchIterator(object):
         self.num_edge_types = sum(self.edge_types.values())
 
         self.iter = 0
-        self.freebatch_edge_types= list(range(self.num_edge_types))
+        self.freebatch_edge_types = list(range(self.num_edge_types))
         self.batch_num = [0]*self.num_edge_types
         self.current_edge_type_idx = 0
         self.edge_type2idx = {}
@@ -45,6 +45,7 @@ class EdgeMinibatchIterator(object):
 
         # Function to build test and val sets with val_test_size positive links
         self.adj_train = {edge_type: [None]*n for edge_type, n in self.edge_types.items()}
+        # TODO: Parallel to make faster
         for i, j in self.edge_types:
             for k in range(self.edge_types[i,j]):
                 print("Minibatch edge type:", "(%d, %d, %d)" % (i, j, k))
@@ -76,6 +77,7 @@ class EdgeMinibatchIterator(object):
         return np.any(rows_close)
 
     def mask_test_edges(self, edge_type, type_idx):
+        # TODO: Mek faster
         edges_all, _, _ = preprocessing.sparse_to_tuple(self.adj_mats[edge_type][type_idx])
         num_test = max(50, int(np.floor(edges_all.shape[0] * self.val_test_size)))
         num_val = max(50, int(np.floor(edges_all.shape[0] * self.val_test_size)))
@@ -91,7 +93,7 @@ class EdgeMinibatchIterator(object):
 
         train_edges = np.delete(edges_all, np.hstack([test_edge_idx, val_edge_idx]), axis=0)
 
-        test_edges_false = []
+        test_edges_false = [] # negative samples
         while len(test_edges_false) < len(test_edges):
             if len(test_edges_false) % 1000 == 0:
                 print("Constructing test edges=", "%04d/%04d" % (len(test_edges_false), len(test_edges)))
