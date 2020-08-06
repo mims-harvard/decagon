@@ -153,18 +153,18 @@ if __name__ == '__main__':
 
     # use pre=processed file that only contains the most common side effects
     drug_drug_net, combo2stitch, combo2se, se2name = load_combo_se(
-        fname=(f'{decagon_data_file_directory}/bio-decagon-combo-freq-only.csv'))
+        combo_path=(f'{decagon_data_file_directory}/bio-decagon-combo-freq-only.csv'))
     # net is a networkx graph with genes(proteins) as nodes and protein-protein-interactions as edges
     # node2idx maps node id to node index
     gene_net, node2idx = load_ppi(
-        fname=(f'{decagon_data_file_directory}/bio-decagon-ppi.csv'))
+        ppi_path=(f'{decagon_data_file_directory}/bio-decagon-ppi.csv'))
     # stitch2se maps (individual) stitch ids to a list of side effect ids
     # se2name_mono maps side effect ids that occur in the mono file to side effect names (shorter than se2name)
     stitch2se, se2name_mono = load_mono_se(
-        fname=(f'{decagon_data_file_directory}/bio-decagon-mono.csv'))
+        mono_path=(f'{decagon_data_file_directory}/bio-decagon-mono.csv'))
     # stitch2proteins maps stitch ids (drug) to protein (gene) ids
     drug_gene_net, stitch2proteins = load_targets(
-        fname=(f'{decagon_data_file_directory}/bio-decagon-targets-all.csv'))
+        targets_path=(f'{decagon_data_file_directory}/bio-decagon-targets-all.csv'))
     # se2class maps side effect id to class name
 
     # this was 0.05 in the original code, but the paper says
